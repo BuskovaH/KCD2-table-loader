@@ -31,7 +31,7 @@ class Character:
 
     # the fields that used to be the keys of the dictionary c
     FIELDS = ("user_given_name", "skald_name", "soul_id", "soul_name", "soul_vip_class_id", 
-            "social_class_id", "inventory_refs", "full_inventory")
+            "social_class", "inventory_refs", "full_inventory")
 
     def __init__(self, user_given_name):
         self.user_given_name = user_given_name
@@ -42,8 +42,7 @@ class Character:
         self.full_inventory = None
         self.soul_vip_class_id = None
         #vip class in Libs/Tables/rpg/soul_vip_class.xml, prescribes who can't be killed and looted.
-        self.social_class_id = None
-        #social class hides in Libs/Tables/rpg/social_class.xml
+        self.social_class = None
 
         # determining the char name
         self.loc = Localization().load(ROOT + "Localization/English_xml.pak/text_ui_soul.xml")
@@ -63,10 +62,16 @@ class Character:
 
         self.load_soul(self.soul)
 
-        #InventoryPreset pull, for now hardcoded. but it should take the stripped part of sources and stick it to InventoryPreset.
-        self.inventory_preset = Table().load(ROOT + "/Data/Tables.pak/Libs/Tables/item/InventoryPreset__kzik.xml")
-        self.load_inventory_refs(self.inventory_preset)
-        self.get_inventory_list()
+        #InventoryPreset pull
+        #fails at quest inventory presets and at special characters inventory presets
+        try:
+            soul_context_stripped = self.soul.sources[0][-8:-4]
+            self.inventory_preset = Table().load(ROOT + "/Data/Tables.pak/Libs/Tables/item/InventoryPreset__" + soul_context_stripped + ".xml")
+
+            self.load_inventory_refs(self.inventory_preset)
+            self.get_inventory_list()
+        except IndexError:
+            self.full_inventory = "I CAN'T REACH THE INVENTORY DO NOT ASK ME WHY"
 
     def find_matches(self, loc):
         """Localization keys that belong to a character (they contain "char_")
@@ -92,15 +97,25 @@ class Character:
                     soul.append(path)                     # only files that matched go in
                     break
         return soul
+    
+    def get_social_class(self, id):
+        #social class hides in Libs/Tables/rpg/social_class.xml
+        social_class_table = Table().load(ROOT + "/Data/Tables.pak/Libs/Tables/rpg/social_class.xml")
+        print(social_class_table[0])
+        row = social_class_table.where(social_class_id = id)[0]
+        return row["social_class_name"]
 
     def load_soul(self, soul):
         """Fill soul_id and soul_name from the first row of `soul` that is this character."""
         #blatant oversight: if char is in more than one soul file, only the first is taken
-        row = soul.where(skald_character_name=self.skald_name)[0]
-        self.soul_id = row["soul_id"]
-        self.soul_name = row["soul_name"]
-        self.soul_vip_class_id = row["soul_vip_class_id"]
-        self.social_class_id = row["social_class_id"]
+        try:
+            row = soul.where(skald_character_name=self.skald_name)[0]
+            self.soul_id = row["soul_id"]
+            self.soul_name = row["soul_name"]
+            self.soul_vip_class_id = row["soul_vip_class_id"]
+            self.social_class = self.get_social_class(row["social_class_id"])
+        except IndexError:
+            print("SOUL FILE NOT FOUND - CHECK IF IT'S NOT MISSING IN CONFIG.PY", self)
 
     def load_inventory_refs(self, inventory_preset):
         """Fill the gear references from this character's entry in `inventory_preset`."""
@@ -110,16 +125,24 @@ class Character:
             print("NO INVENTORY FOUND. ARE YOU SURE???")
             return
         self.inventory_refs = {}
-        self.inventory_refs["weapons"] = inventory["WeaponPresetRef"][0]["Name"]
-        self.inventory_refs["clothing"] = inventory["ClothingPresetRef"][0]["Name"]
-        self.inventory_refs["pockets"] = inventory["InventoryPresetRef"][0]["Name"]
+        try:
+            self.inventory_refs["weapons"] = inventory["WeaponPresetRef"][0]["Name"]
+        except KeyError:
+            self.inventory_refs["weapons"] = None
+        try:
+            self.inventory_refs["clothing"] = inventory["ClothingPresetRef"][0]["Name"]
+        except KeyError:
+            self.inventory_refs["clothing"] = None
+        try:
+            self.inventory_refs["pockets"] = inventory["InventoryPresetRef"][0]["Name"]
+        except KeyError:
+            self.inventory_refs["pockets"] = None
         
     def get_inventory_list(self):
         if self.inventory_refs == None:
             return
         else:
             self.full_inventory = Inventory(self.inventory_refs)
-            print(self.full_inventory.to_dict)
         
     def to_dict(self):
         """The same dictionary `c` used to be."""

@@ -21,18 +21,23 @@ class Inventory:
         
     def get_name(self, item_id):       
         row = self.item_names.where(Id=item_id)
-        #return {"Name":row[0]["Name"], "UIName":row[0]["UIName"], "MaxQuality":row[0]["MaxQuality"]}
-        return row[0]
-        
-    def get_weapons(self,weapons_ref):    
+        try:
+            english_name = self.item_localization.get(row[0]["UIName"], 1)
+            return {"Name" : row[0]["Name"], "English name" : english_name}
+        except IndexError:
+            return {"Id": item_id}
+
+    def get_weapons(self,weapons_ref):
+        if weapons_ref == None:
+            return None    
         weapons_dict_raw = Table().load(ROOT + "Data/Tables.pak/Libs/Tables/item/weapon_preset.xml").where(weapon_preset_name = self.weapons_ref)[0]
         weapons_id_list = []
         for i in weapons_dict_raw["weapon_preset_item"]:
-            weapons_id_list.append(i)
-        #weapons_list = []
-        #for i in weapons_id_list:
-        #    weapons_list.append(self.get_name(i))
-        return weapons_id_list
+            weapons_id_list.append(i["item_class_id"])
+        weapons_list = []
+        for i in weapons_id_list:
+            weapons_list.append(self.get_name(i))
+        return weapons_list
         
     def get_clothing(self,clothing_ref):
         clothing_dict_raw = Table().load(ROOT + "Data/Tables.pak/Libs/Tables/item/clothing_preset.xml").where(clothing_preset_name = self.clothing_ref)[0]["Items"][0]["Guid"]

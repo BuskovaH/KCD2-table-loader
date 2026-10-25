@@ -8,3 +8,9 @@ except CharacterError as e:
     exit()
 
 print(c)
+
+print("Tech details for infobox:")
+print("|character = ",c.skald_name)
+print("|soul_name = ", c.soul_name)
+print("|soul_id = ", c.soul_id)
+
