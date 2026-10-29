@@ -1,34 +1,46 @@
 from helpers import *
 from character import Character, CharacterError
 from item import Item
+from printers import *
+
+#investigate the error that generates when i searched for Gartered hose
 
 while True:
     switch = input('''
         What do you want to pull from the game files?
         'c' - character
         'i' - item
-        'exit' - exit program
+        'e' - exit program
         ''')
     match switch:
         case "c":
             try:
                 c = Character(input("Give me the name of the person:\n"))
                 print(c)
-
-                print("Tech details for infobox:")
-                print("|character = ",c.skald_name)
-                print("|soul_name = ", c.soul_name)
-                print("|soul_id = ", c.soul_id)
-
+                infobox = Infobox.create(c)
+                print(infobox)
             except CharacterError as e:
                 print(e)
-
         case "i":
-            i = Item(input("Give me the item name or id:\n"))
-            print(i)
-
-        case "exit":
+            items = Item.search(input("Give me the item name or id:\n"))
+            if items == []:
+                print("no item found")
+            else:
+                print(len(items), "item(s) found")
+                for i in items:
+                    print(i)
+                wants_infobox_switch = input("Do you want to generate an infobox? y/n\n")
+                if wants_infobox_switch == "y" and len(items) == 1:
+                    index = 0
+                else:
+                    print("I found all of these items:")
+                    for i, j in enumerate(items):
+                        print(f"{i+1}: {j.properties["Name"]}")
+                        #print(f"{i+1}: {j.properties["Name"]}")
+                    index = int(input("Which one do you want to generate the infobox for? (number):\n")) - 1
+                infobox = Infobox.create(items[index])
+                print(infobox)
+        case "e":
             break
-
         case _:
             print("idk what that means")

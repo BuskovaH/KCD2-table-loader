@@ -30,11 +30,12 @@ class Character:
     """
 
     # the fields that used to be the keys of the dictionary c
-    FIELDS = ("user_given_name", "skald_name", "soul_id", "soul_name", "soul_vip_class_id", 
+    FIELDS = ("name", "skald_name", "soul_id", "soul_name", "soul_vip_class_id", 
             "social_class", "inventory_refs", "full_inventory")
 
     def __init__(self, user_given_name):
         self.user_given_name = user_given_name
+        self.name = None
         self.skald_name = None      # char_NEKDO_CAPSLOCKEM without the _uiName part
         self.soul_id = None
         self.soul_name = None
@@ -43,6 +44,7 @@ class Character:
         self.soul_vip_class_id = None
         #vip class in Libs/Tables/rpg/soul_vip_class.xml, prescribes who can't be killed and looted.
         self.social_class = None
+        self.properties = None #preferably pull everything from infobox into this, a dict that keeps the full soul entry
 
         # determining the char name
         self.loc = Localization().load(ROOT + "Localization/English_xml.pak/text_ui_soul.xml")
@@ -52,10 +54,22 @@ class Character:
         if len(matches) == 0:
             raise CharacterError("no match found, come back when you have more sense")
         elif len(matches) > 1:
-            raise CharacterError("too many matches found, go fuck yourself.")
-        else:
+            index = int(input("I only deal with one character at once. \nGive me their number from the list above:\n"))-1
+            matches = matches[index]
             print("continuing search.")
+            if "soul_ui" in matches[0]:
+                raise CharacterError("I can't deal with generic NPCs yet.")            
             self.skald_name = matches[0][:-7]                 # cut off "_uiName"
+            self.name = matches[1]            
+            print(self.skald_name)
+            print(self.name)
+        else:
+            matches = matches[0]
+            print("continuing search.")
+            if "soul_ui" in matches[0]:
+                raise CharacterError("I can't deal with generic NPCs yet.")
+            self.skald_name = matches[0][:-7]                 # cut off "_uiName"
+            self.name = matches[1]
 
         self.soul = self.find_soul_table(SOUL_CANDIDATES)
         print(self.soul.sources)                              # which files made it
@@ -77,13 +91,17 @@ class Character:
         """Localization keys that belong to a character (they contain "char_")
         and whose third-column text contains the name the user gave."""
         #getting their uiname from localization files: it's char_NEKDO_CAPSLOCKEM_uiName
+        #unnamed characters have their soul directly in Loc:
+        #<Row><Cell>soul_ui_name_townsman</Cell><Cell>Měšťan</Cell><Cell>Měšťan</Cell></Row>
         #you can't make me do list comprehension
         matches = []
+        number = 1
         for key in loc:
             text = loc.get(key, 1, "")                    # that key's third-column text
-            if self.user_given_name.casefold() in text.casefold() and "char_" in key:
-                matches.append(key)
-                print(key, text)
+            if self.user_given_name.casefold() in text.casefold() and (("char_" in key) or ("soul_ui_name" in key)):
+                matches.append([key, text])
+                print(number, key, text)
+                number += 1
         return matches
 
     def find_soul_table(self, candidates):
@@ -114,15 +132,17 @@ class Character:
             self.soul_name = row["soul_name"]
             self.soul_vip_class_id = row["soul_vip_class_id"]
             self.social_class = self.get_social_class(row["social_class_id"])
+            self.properties = row
         except IndexError:
             print("SOUL FILE NOT FOUND - CHECK IF IT'S NOT MISSING IN CONFIG.PY", self)
 
     def load_inventory_refs(self, inventory_preset):
         """Fill the gear references from this character's entry in `inventory_preset`."""
+        #some inventories will also hide in InventoryPreset__uniqueCharacters.xml
         try:
             inventory = inventory_preset.where(Name=("inventory_" + self.soul_name))[0]
         except IndexError:
-            print("NO INVENTORY FOUND. ARE YOU SURE???")
+            print("NO INVENTORY FOUND. IT'S POSSIBLE THE CHARACTER IS ONLY ACTIVE DURING A QUEST. I CAN'T DEAL WITH THESE YET.")
             return
         self.inventory_refs = {}
         try:
