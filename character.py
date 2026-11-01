@@ -6,16 +6,6 @@ from config import ROOT, SOUL_CANDIDATES
 class CharacterError(Exception):
     """The name given doesn't lead to exactly one character."""
 
-def row_contains(row, phrase):
-    """True if any value in the row, including nested sub-items, contains the phrase."""
-    for value in row.values():
-        if isinstance(value, list):
-            if any(row_contains(sub, phrase) for sub in value):
-                return True
-        elif phrase.casefold() in value.casefold():
-            return True
-    return False
-
 class Character:
     """Everything we know about one character. Replaces the dictionary `c`:
     c["skald_name"] is now c.skald_name, and so on.
@@ -45,6 +35,7 @@ class Character:
         #vip class in Libs/Tables/rpg/soul_vip_class.xml, prescribes who can't be killed and looted.
         self.social_class = None
         self.properties = None #preferably pull everything from infobox into this, a dict that keeps the full soul entry
+        #body type is in Tables/skald/skald_character
 
         # determining the char name
         self.loc = Localization().load(ROOT + "Localization/English_xml.pak/text_ui_soul.xml")
@@ -52,8 +43,17 @@ class Character:
 
         print("a total of", len(matches), "matches.")
         if len(matches) == 0:
-            raise CharacterError("no match found, come back when you have more sense")
-        elif len(matches) > 1:
+            self.czloc = Localization().load(ROOT + "Localization/Czech_xml.pak/text_ui_soul.xml")
+            print("I will try the Czech files.")
+            czmatches = self.find_matches(self.czloc)
+            #this is broken and idk why, testuj na Kristiánovi z Písku
+            if len(czmatches) == 0:
+                raise CharacterError("Not found in Czech or English localization files.")
+            else:
+                for i in czmatches:
+                    matches.append(self.loc.get(i[0], 1, ""))
+
+        if len(matches) > 1:
             index = int(input("I only deal with one character at once. \nGive me their number from the list above:\n"))-1
             matches = matches[index]
             print("continuing search.")
@@ -78,6 +78,7 @@ class Character:
 
         #InventoryPreset pull
         #fails at quest inventory presets and at special characters inventory presets
+        #some inventory presets are also stored in IPL_GameData.pak/Libs/Storm/equipment/quests/
         try:
             soul_context_stripped = self.soul.sources[0][-8:-4]
             self.inventory_preset = Table().load(ROOT + "/Data/Tables.pak/Libs/Tables/item/InventoryPreset__" + soul_context_stripped + ".xml")
@@ -93,7 +94,6 @@ class Character:
         #getting their uiname from localization files: it's char_NEKDO_CAPSLOCKEM_uiName
         #unnamed characters have their soul directly in Loc:
         #<Row><Cell>soul_ui_name_townsman</Cell><Cell>Měšťan</Cell><Cell>Měšťan</Cell></Row>
-        #you can't make me do list comprehension
         matches = []
         number = 1
         for key in loc:
@@ -110,12 +110,11 @@ class Character:
         soul = Table()
         for path in candidates:
             probe = Table().load(path)                    # parse the file on its own first
-            for row in probe:
-                if row_contains(row, self.skald_name):
-                    soul.append(path)                     # only files that matched go in
-                    break
+            if probe.search(self.skald_name):             # any row mentions the name
+                soul.append(path)                         # only files that matched go in
         return soul
-    
+
+
     def get_social_class(self, id):
         #social class hides in Libs/Tables/rpg/social_class.xml
         social_class_table = Table().load(ROOT + "/Data/Tables.pak/Libs/Tables/rpg/social_class.xml")
@@ -125,7 +124,6 @@ class Character:
 
     def load_soul(self, soul):
         """Fill soul_id and soul_name from the first row of `soul` that is this character."""
-        #blatant oversight: if char is in more than one soul file, only the first is taken
         try:
             row = soul.where(skald_character_name=self.skald_name)[0]
             self.soul_id = row["soul_id"]
@@ -134,7 +132,7 @@ class Character:
             self.social_class = self.get_social_class(row["social_class_id"])
             self.properties = row
         except IndexError:
-            print("SOUL FILE NOT FOUND - CHECK IF IT'S NOT MISSING IN CONFIG.PY", self)
+            raise CharacterError("Soul file not found - check if it's not missing in config.py.")
 
     def load_inventory_refs(self, inventory_preset):
         """Fill the gear references from this character's entry in `inventory_preset`."""
@@ -142,8 +140,7 @@ class Character:
         try:
             inventory = inventory_preset.where(Name=("inventory_" + self.soul_name))[0]
         except IndexError:
-            print("NO INVENTORY FOUND. IT'S POSSIBLE THE CHARACTER IS ONLY ACTIVE DURING A QUEST. I CAN'T DEAL WITH THESE YET.")
-            return
+            inventory = {}
         self.inventory_refs = {}
         try:
             self.inventory_refs["weapons"] = inventory["WeaponPresetRef"][0]["Name"]
@@ -163,6 +160,10 @@ class Character:
             return
         else:
             self.full_inventory = Inventory(self.inventory_refs)
+            
+    def get_head(self):
+        #heads are stored in IPL_GameData.pak/Libs/Storm/appearance/common/appearance*xml
+        pass
         
     def to_dict(self):
         """The same dictionary `c` used to be."""

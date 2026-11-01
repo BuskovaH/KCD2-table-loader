@@ -1,16 +1,6 @@
 from helpers import Table, Localization
 from config import ROOT
 
-def row_contains(row, phrase):
-    """True if any value in the row, including nested sub-items, contains the phrase."""
-    for value in row.values():
-        if isinstance(value, list):
-            if any(row_contains(sub, phrase) for sub in value):
-                return True
-        elif phrase.casefold() in value.casefold():
-            return True
-    return False
-
 class Item:
     """One item: one row of item.xml plus its English name and description.
 
@@ -51,15 +41,12 @@ class Item:
         """`row` is one row (a dict) of item.xml, as found by table_search."""
         self.load_tables()
         self.properties = row
-        self.name = self.localization_table.get(row.get('UIName'), 1, default="Mystery item")
+        self.name = self.localization_table.get(row.get('UIName'), 1, default="Mystery bag")
         self.description = self.localization_table.get(row.get('UIInfo'), 1)
 
     @classmethod
     def table_search(cls, query):
-        result = []
-        for row in cls.full_item_table:
-            if row_contains(row, query):
-                result.append(row)
+        result = cls.full_item_table.search(query)
         if result == []:
             localization_query = []
             for key in cls.localization_table:
@@ -67,8 +54,8 @@ class Item:
                 if query.casefold() in text.casefold() and "ui_nm_" in key:
                     localization_query.append(key[6:])
             for name in localization_query:
-                for row in cls.full_item_table:
-                    if row_contains(row, name) and row not in result:    # no row twice
+                for row in cls.full_item_table.search(name):
+                    if row not in result:                 # no row twice
                         result.append(row)
         return result
 

@@ -32,14 +32,16 @@ while True:
                 wants_infobox_switch = input("Do you want to generate an infobox? y/n\n")
                 if wants_infobox_switch == "y" and len(items) == 1:
                     index = 0
-                else:
+                    infobox = Infobox.create(items[index])
+                    print(infobox)
+                elif wants_infobox_switch == "y":
                     print("I found all of these items:")
                     for i, j in enumerate(items):
                         print(f"{i+1}: {j.properties["Name"]}")
                         #print(f"{i+1}: {j.properties["Name"]}")
                     index = int(input("Which one do you want to generate the infobox for? (number):\n")) - 1
-                infobox = Infobox.create(items[index])
-                print(infobox)
+                    infobox = Infobox.create(items[index])
+                    print(infobox)
         case "e":
             break
         case _:

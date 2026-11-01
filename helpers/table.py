@@ -177,6 +177,29 @@ class Table:
         """Rows whose columns equal all given values: t.where(social_class_id="1")"""
         return [r for r in self.rows if all(r.get(k) == v for k, v in conditions.items())]
 
+    def search(self, phrase):
+        """Rows where any value, including those of nested sub-items, contains
+        the phrase (case-insensitive). Column names are not searched.
+
+            t.search("strength")     # list of matching row dicts, [] if none
+        """
+        result = []
+        for row in self.rows:
+            if self._row_contains(row, phrase):
+                result.append(row)
+        return result
+
+    @classmethod
+    def _row_contains(cls, row, phrase):
+        """True if any value in the row, including nested sub-items, contains the phrase."""
+        for value in row.values():
+            if isinstance(value, list):
+                if any(cls._row_contains(sub, phrase) for sub in value):
+                    return True
+            elif phrase.casefold() in value.casefold():
+                return True
+        return False
+
     def drop(self, predicate=None, /, **conditions):
         """Remove rows in place and return how many were removed.
 
