@@ -4,6 +4,10 @@ from item import Item
 from printers import *
 
 #investigate the error that generates when i searched for Gartered hose
+#I'll handle references to files entirely in config.py in the next commit for */aesthetics/*
+#Responsible garbage recycling - make sure the Localization and Item files are loaded as few times as possible.
+#RNG pocket contents, money, and item quality - I don't know the shape of the distribution yet.
+#Unnamed NPCs - honestly a lot of work with no reward
 
 while True:
     switch = input('''
@@ -16,7 +20,6 @@ while True:
         case "c":
             try:
                 c = Character(input("Give me the name of the person:\n"))
-                print(c)
                 infobox = Infobox.create(c)
                 print(infobox)
             except CharacterError as e:

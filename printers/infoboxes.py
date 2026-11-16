@@ -40,7 +40,6 @@ class KCD2_character_infobox(Infobox):
 
     def get_social_class(self, id):
         social_class_table = Table().load(ROOT + "/Data/Tables.pak/Libs/Tables/rpg/social_class.xml")
-        print(social_class_table[0])
         row = social_class_table.where(social_class_id = id)[0]
         return row["social_class_name"].capitalize()
 
@@ -52,7 +51,6 @@ class KCD2_character_infobox(Infobox):
             return "immortal"
 
     def get_gender(self, id):
-        print("This function got called with id", id, type(id), "0" == id)
         if id == "0":
             return "Male"
         if id == "1":

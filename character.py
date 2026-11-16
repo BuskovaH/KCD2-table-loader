@@ -68,7 +68,7 @@ class Character:
             self.name = matches[1]
 
         self.soul = self.find_soul_table(SOUL_CANDIDATES)
-        print(self.soul.sources)                              # which files made it
+        #print(self.soul.sources)                              # which files made it
 
         self.load_soul(self.soul)
         #InventoryPreset pull
@@ -113,7 +113,6 @@ class Character:
 
     def get_social_class(self, id):
         social_class_table = Table().load(ROOT + "/Data/Tables.pak/Libs/Tables/rpg/social_class.xml")
-        print(social_class_table[0])
         row = social_class_table.where(social_class_id = id)[0]
         return row["social_class_name"]
 
