@@ -19,9 +19,7 @@ class Character:
     loc, soul, inventory_preset, weapons, clothing, pockets, item_names.
     """
 
-    # the fields that used to be the keys of the dictionary c
-    FIELDS = ("name", "skald_name", "soul_id", "soul_name", "soul_vip_class_id", 
-            "social_class", "inventory_refs", "full_inventory")
+    FIELDS = ("name", "skald_name", "soul_id", "soul_name", "inventory_refs", "full_inventory")
 
     def __init__(self, user_given_name):
         self.user_given_name = user_given_name
@@ -32,7 +30,6 @@ class Character:
         self.inventory_refs = None
         self.full_inventory = None
         self.soul_vip_class_id = None
-        #vip class in Libs/Tables/rpg/soul_vip_class.xml, prescribes who can't be killed and looted.
         self.social_class = None
         self.properties = None #preferably pull everything from infobox into this, a dict that keeps the full soul entry
         #body type is in Tables/skald/skald_character
@@ -46,12 +43,11 @@ class Character:
             self.czloc = Localization().load(ROOT + "Localization/Czech_xml.pak/text_ui_soul.xml")
             print("I will try the Czech files.")
             czmatches = self.find_matches(self.czloc)
-            #this is broken and idk why, testuj na Kristiánovi z Písku
             if len(czmatches) == 0:
                 raise CharacterError("Not found in Czech or English localization files.")
             else:
                 for i in czmatches:
-                    matches.append(self.loc.get(i[0], 1, ""))
+                    matches.append([i[0], self.loc.get(i[0], 1, "")])
 
         if len(matches) > 1:
             index = int(input("I only deal with one character at once. \nGive me their number from the list above:\n"))-1
@@ -75,7 +71,6 @@ class Character:
         print(self.soul.sources)                              # which files made it
 
         self.load_soul(self.soul)
-
         #InventoryPreset pull
         #fails at quest inventory presets and at special characters inventory presets
         #some inventory presets are also stored in IPL_GameData.pak/Libs/Storm/equipment/quests/
@@ -85,8 +80,10 @@ class Character:
 
             self.load_inventory_refs(self.inventory_preset)
             self.get_inventory_list()
-        except IndexError:
+        except (IndexError, FileNotFoundError):
             self.full_inventory = "I CAN'T REACH THE INVENTORY DO NOT ASK ME WHY"
+
+        self.get_head()
 
     def find_matches(self, loc):
         """Localization keys that belong to a character (they contain "char_")
@@ -114,9 +111,7 @@ class Character:
                 soul.append(path)                         # only files that matched go in
         return soul
 
-
     def get_social_class(self, id):
-        #social class hides in Libs/Tables/rpg/social_class.xml
         social_class_table = Table().load(ROOT + "/Data/Tables.pak/Libs/Tables/rpg/social_class.xml")
         print(social_class_table[0])
         row = social_class_table.where(social_class_id = id)[0]
@@ -129,7 +124,10 @@ class Character:
             self.soul_id = row["soul_id"]
             self.soul_name = row["soul_name"]
             self.soul_vip_class_id = row["soul_vip_class_id"]
-            self.social_class = self.get_social_class(row["social_class_id"])
+            try:
+                self.social_class = self.get_social_class(row["social_class_id"])
+            except KeyError:
+                self.social_class = ""
             self.properties = row
         except IndexError:
             raise CharacterError("Soul file not found - check if it's not missing in config.py.")
@@ -162,8 +160,31 @@ class Character:
             self.full_inventory = Inventory(self.inventory_refs)
             
     def get_head(self):
-        #heads are stored in IPL_GameData.pak/Libs/Storm/appearance/common/appearance*xml
-        pass
+        soul_context_stripped = self.soul.sources[0][-8:-4]
+        head_table = Table().load(ROOT + "/Data/IPL_GameData.pak/Libs/Storm/appearance/common/appearance_" + soul_context_stripped + ".xml")
+        #can also hide in appearance_poustevnici, appearance_unique, a appearance_cin_universal
+        row = head_table.search(self.soul_name)
+        # je to takhle protože někdy to je "name" a někdy "Name" a je to fakt random
+        try:
+            entry = row[0]["operations"][0]["setHead"][0]
+            self.head = entry.get("Name", entry.get("name"))
+        except KeyError:
+            pass 
+        try:
+            entry = row[0]["operations"][0]["setHair"][0]
+            self.hair = entry.get("Name", entry.get("name"))
+        except KeyError:
+            pass
+        try:
+            entry = row[0]["operations"][0]["setBeard"][0]
+            self.beard = entry.get("Name", entry.get("name"))
+        except KeyError:
+            pass
+        try:
+            entry = row[0]["operations"][0]["setBody"][0]
+            self.body = entry.get("Name", entry.get("name"))
+        except KeyError:
+            pass
         
     def to_dict(self):
         """The same dictionary `c` used to be."""

@@ -43,6 +43,7 @@ class Item:
         self.properties = row
         self.name = self.localization_table.get(row.get('UIName'), 1, default="Mystery bag")
         self.description = self.localization_table.get(row.get('UIInfo'), 1)
+        self.category = row.get('_tag')
 
     @classmethod
     def table_search(cls, query):
@@ -73,3 +74,9 @@ class Item:
         for key, value in self.to_dict().items():
             parts.append(f"    {key}={value!r}")
         return "Item(\n" + ",\n".join(parts) + "\n)"
+
+    #t = Table().load(ROOT + "Data/Tables.pak/Libs/Tables/Item/item.xml")
+
+    #t[0]                      # {'_tag': 'Armor', 'DefenseStab': '2', ..., 'Name': 'Cap01_m04_C'}
+    #t.where(_tag="Food")      # every <Food .../> row
+    #t.drop(_tag="Armor")      # remove a whole category

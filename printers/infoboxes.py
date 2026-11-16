@@ -32,6 +32,12 @@ class KCD2_character_infobox(Infobox):
         #a dictionary search taking the first letter of soul_context_stripped = self.soul.sources[0][-8:-4]
         pass
 
+    def location(self, source):
+        #a dictionary search
+        locations = {"kboh": "Bohunowitz", "kbyl": "Bylany", "kcer": "Devil's Den", 
+            "kgru": "Grund", "khor": "Horschan", "kkop": ""}
+        pass
+
     def get_social_class(self, id):
         social_class_table = Table().load(ROOT + "/Data/Tables.pak/Libs/Tables/rpg/social_class.xml")
         print(social_class_table[0])
@@ -57,7 +63,7 @@ class KCD2_character_infobox(Infobox):
     def get_combat(self, level):
         # conbat level name is stored in Tables/rpg/soul_combat_level.xml
         combat_level_table = Table().load(ROOT + "/Data/Tables.pak/Libs/Tables/rpg/soul_combat_level.xml")
-        combat_level = combat_level_table.search(level)
+        combat_level = combat_level_table.search(level[:3])
         return level + " (" + combat_level[0]["soul_combat_level_name"][6:] + ")"
 
     def body(self, character):
@@ -67,35 +73,24 @@ class KCD2_character_infobox(Infobox):
         #    param_list.append(f"|{key} = {value}")
         #add gender - stored as soul archetype
         lines.append(f"|name        = {character.name}")
-        lines.append(f"|station     = {self.get_social_class(character.properties["social_class_id"])}")
+        try:
+            lines.append(f"|station     = {self.get_social_class(character.properties["social_class_id"])}")
+        except KeyError:
+            pass
         lines.append(f"|gender      = {self.get_gender(character.properties["soul_archetype_id"])}")
         try:
             lines.append(f"|combat      = {self.get_combat(character.properties["combat_level"])}")
         except KeyError:
             pass
+        lines.append(f"|head_id     = {character.head}")
+        lines.append(f"|hair        = {character.hair}")
         lines.append(f"|character   = {character.properties["skald_character_name"]}")
         lines.append(f"|soul_name   = {character.properties["soul_name"]}")
         lines.append(f"|soul_id     = {character.properties["soul_id"]}")
+        lines.append(f"|Affiliation = {character.properties["factionName"]}")
         lines.append(f"|mortality   = {self.get_mortality(character.properties["soul_vip_class_id"])}")
+        lines.append(f"|games       = KCD2")
         return lines
-
-        '''
-        {{Infobox
-        |name = Grozav of Borumlaca
-        |brain_id = 4b914d1c-724a-a92d-3e6b-d183d35b8b98
-        |combat_level = 0.9
-        |digestion_multiplier = 0
-        |factionName = kutnohorsko_settlements_zikmundovo_nobility_grozav
-        |initial_clothing_dirt = 0
-        |skald_character_name = char_GROZAV_Z_BORUMLACA_VELITEL_ZOLDAKU_ZIKMUNDOVO
-        |social_class_id = 14
-        |soul_archetype_id = 0
-        |soul_id = 055c8d3b-36b9-49b9-a575-7fb545df6807
-        |soul_name = kzik_grozav
-        |soul_vip_class_id = 0
-        |xp_multiplier = 0
-        }}
-        '''
 
         '''{{KCD2 Character Infobox
         |name        = 
@@ -122,6 +117,7 @@ class KCD2_character_infobox(Infobox):
         |affiliation = 
         |skills      = 
         <!-- Technical Information -->
+        |head_id     =
         |games       = 
         |character   = 
         |soul_name   = 
@@ -132,24 +128,55 @@ class KCD2_character_infobox(Infobox):
         |body_type   = 
         }}
         '''
-
 class KCD2_item_infobox(Infobox):
+    #weapon class hides in... weapon_class.xml. same with weapon_sub_class.
+    def body_weapon(self, item):
+        lines = []
+        lines.append(f"|str/agi     = {item.properties["StrReq"]}/{item.properties["AgiReq"]}")
+        lines.append(f"|defence     = {item.properties["Defense"]}")
+        lines.append(f"|charisma    = {item.properties["Charisma"]}")
+        lines.append(f"|durability  = {item.properties["MaxStatus"]}")
+        return lines
 
-    def get_item_type(self, item):
-        pass
+    def body_food(self, item):
+        lines = []
+        lines.append(f"|nourishment = {item.properties["NutritionBenefit"]}")
+        lines.append(f"|energy      = {item.properties["RefreshBenefit"]}")
+        lines.append(f"|health      = {item.properties["HealthBenefit"]}")
+        lines.append(f"|alcohol     = {item.properties["AlcoholContent"]}")
+        lines.append(f"|durability  = {int(item.properties["DecayTime"])/24} days")
+        return lines
+    
+    def body_clothing(self, item):
+        lines = []
+        lines.append(f"|charisma    = {item.properties["Charisma"]}")
+        lines.append(f"|noise       = {float(item.properties["Noise"])*100:.0f}")
+        lines.append(f"|durability  = {item.properties["MaxStatus"]}")
+        lines.append(f"|visibility  = {float(item.properties["Visibility"])*50+50:.0f}")
+        lines.append(f"|conspic     = {float(item.properties["Conspicuousness"])*50+50:.0f}")
+        lines.append(f"|stab        = {item.properties["DefenseStab"]}")
+        lines.append(f"|slash       = {item.properties["DefenseSlash"]}")
+        lines.append(f"|blunt       = {item.properties["DefenseSmash"]}")
+        return lines
 
     def body(self, item):
         lines = []
         lines.append(f"{{{{KCD2 Item Infobox")
         lines.append(f"|name        = {item.name}")
-        lines.append(f"image        = {item.properties["IconId"]}_icon.png")
+        lines.append(f"|image       = {item.properties["IconId"]}_icon.png")
+        lines.append(f"|type        = {item.category}")
+        if item.category == "MeleeWeapon":
+            lines.extend(self.body_weapon(self.thing))
+        if item.category == "Armor":
+            lines.extend(self.body_clothing(self.thing))
+        if item.category == "Food":
+            lines.extend(self.body_food(self.thing))
+        lines.append(f"|weight      = {item.properties["Weight"]}")
+        lines.append(f"|price       = {int(item.properties["Price"])/10}")
+        lines.append(f"|code1       = {item.properties["UIName"]}")
+        lines.append(f"|code2       = {item.properties["Id"]}")
         return lines
-
-        # visibility: visibility*50 + 50
-        # conspic: conspicuousness*50 + 50
-        # noise = noise*100
         # maxStatus = durability
-        # Price: Price/10
         # idk what visibilitycoef does
 
         '''

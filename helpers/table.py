@@ -24,6 +24,11 @@ class Table:
         {"weapon_preset_id": "...", "weapon_preset_name": "longsword_5_01",
          "weapon_preset_item": [{"item_class_id": "..."}]}
 
+    Each row of the table also gets "_tag": the name of its XML element, i.e.
+    its category (<Armor .../> gives "_tag": "Armor"). Use t.where(_tag="Food")
+    to pick a category. search() does not look at the tag. Sub-items don't get
+    one, since they are already grouped under their tag.
+
     All values are strings, exactly as in the file.
     """
 
@@ -107,7 +112,12 @@ class Table:
         else:
             element = next(iter(root), root)   # first child of <database>
 
-        rows = [cls._row_from_element(el) for el in element] if element is not root else []
+        rows = []
+        if element is not root:
+            for el in element:
+                row = {"_tag": el.tag}                    # the category, e.g. Armor, Food
+                row.update(cls._row_from_element(el))
+                rows.append(row)
         return root, element, rows
 
     @classmethod
@@ -191,8 +201,12 @@ class Table:
 
     @classmethod
     def _row_contains(cls, row, phrase):
-        """True if any value in the row, including nested sub-items, contains the phrase."""
-        for value in row.values():
+        """True if any value in the row, including nested sub-items, contains the phrase.
+        The "_tag" (category) isn't searched, so t.search("food") finds rows that
+        mention food, not every row of category Food; use where(_tag=...) for that."""
+        for key, value in row.items():
+            if key == "_tag":
+                continue
             if isinstance(value, list):
                 if any(cls._row_contains(sub, phrase) for sub in value):
                     return True
