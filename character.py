@@ -1,15 +1,13 @@
 """Character: everything we know about one character."""
 from helpers import Table, Localization
 from inventory import Inventory
-from config import ROOT, SOUL_CANDIDATES
+from config import *
 
 class CharacterError(Exception):
     """The name given doesn't lead to exactly one character."""
 
 class Character:
-    """Everything we know about one character. Replaces the dictionary `c`:
-    c["skald_name"] is now c.skald_name, and so on.
-
+    """
     Character(name, root) does the whole lookup straight away: it finds the
     character in the localization files, loads their soul and their gear
     references. `root` is the game folder, ending with a slash. Raises
@@ -35,12 +33,12 @@ class Character:
         #body type is in Tables/skald/skald_character
 
         # determining the char name
-        self.loc = Localization().load(ROOT + "Localization/English_xml.pak/text_ui_soul.xml")
+        self.loc = Localization().load(ROOT + LOCALIZATION)
         matches = self.find_matches(self.loc)
 
         print("a total of", len(matches), "matches.")
         if len(matches) == 0:
-            self.czloc = Localization().load(ROOT + "Localization/Czech_xml.pak/text_ui_soul.xml")
+            self.czloc = Localization().load(ROOT + LOCALIZATION_CZECH)
             print("I will try the Czech files.")
             czmatches = self.find_matches(self.czloc)
             if len(czmatches) == 0:
@@ -76,7 +74,7 @@ class Character:
         #some inventory presets are also stored in IPL_GameData.pak/Libs/Storm/equipment/quests/
         try:
             soul_context_stripped = self.soul.sources[0][-8:-4]
-            self.inventory_preset = Table().load(ROOT + "/Data/Tables.pak/Libs/Tables/item/InventoryPreset__" + soul_context_stripped + ".xml")
+            self.inventory_preset = Table().load(ROOT + INVENTORY_PRESET + soul_context_stripped + ".xml")
 
             self.load_inventory_refs(self.inventory_preset)
             self.get_inventory_list()
@@ -112,7 +110,7 @@ class Character:
         return soul
 
     def get_social_class(self, id):
-        social_class_table = Table().load(ROOT + "/Data/Tables.pak/Libs/Tables/rpg/social_class.xml")
+        social_class_table = Table().load(ROOT + SOCIAL_CLASS)
         row = social_class_table.where(social_class_id = id)[0]
         return row["social_class_name"]
 
@@ -160,29 +158,32 @@ class Character:
             
     def get_head(self):
         soul_context_stripped = self.soul.sources[0][-8:-4]
-        head_table = Table().load(ROOT + "/Data/IPL_GameData.pak/Libs/Storm/appearance/common/appearance_" + soul_context_stripped + ".xml")
-        #can also hide in appearance_poustevnici, appearance_unique, a appearance_cin_universal
-        row = head_table.search(self.soul_name)
+        try:
+            head_table = Table().load(ROOT + APPEARANCE + soul_context_stripped + ".xml")
+            #can also hide in appearance_poustevnici, appearance_unique, a appearance_cin_universal
+            row = head_table.search(self.soul_name)
+        except FileNotFoundError:
+            row = []
         # je to takhle protože někdy to je "name" a někdy "Name" a je to fakt random
         try:
             entry = row[0]["operations"][0]["setHead"][0]
             self.head = entry.get("Name", entry.get("name"))
-        except KeyError:
+        except (KeyError, IndexError):
             pass 
         try:
             entry = row[0]["operations"][0]["setHair"][0]
             self.hair = entry.get("Name", entry.get("name"))
-        except KeyError:
+        except (KeyError, IndexError):
             pass
         try:
             entry = row[0]["operations"][0]["setBeard"][0]
             self.beard = entry.get("Name", entry.get("name"))
-        except KeyError:
+        except (KeyError, IndexError):
             pass
         try:
             entry = row[0]["operations"][0]["setBody"][0]
             self.body = entry.get("Name", entry.get("name"))
-        except KeyError:
+        except (KeyError, IndexError):
             pass
         
     def to_dict(self):

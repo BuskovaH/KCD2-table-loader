@@ -1,7 +1,7 @@
 from character import Character
 from item import Item
 from helpers import Table
-from config import ROOT
+from config import ROOT, SOCIAL_CLASS, LOCATIONS, COMBAT_LEVEL
 import textwrap
 
 class Infobox:
@@ -26,6 +26,7 @@ class Infobox:
         lines.append("}}")
         return "\n".join(lines)
 
+
 class KCD2_character_infobox(Infobox):
 
     def region(self, source):
@@ -34,17 +35,16 @@ class KCD2_character_infobox(Infobox):
 
     def location(self, source):
         #a dictionary search
-        locations = {"kboh": "Bohunowitz", "kbyl": "Bylany", "kcer": "Devil's Den", 
-            "kgru": "Grund", "khor": "Horschan", "kkop": ""}
+        locations = LOCATIONS
         pass
 
     def get_social_class(self, id):
-        social_class_table = Table().load(ROOT + "/Data/Tables.pak/Libs/Tables/rpg/social_class.xml")
+        social_class_table = Table().load(ROOT + SOCIAL_CLASS)
         row = social_class_table.where(social_class_id = id)[0]
         return row["social_class_name"].capitalize()
 
     def get_mortality(self, id):
-        vip_class_table = Table().load(ROOT + "/Data/Tables.pak/Libs/Tables/rpg/soul_vip_class.xml")
+        #vip_class_table = Table().load(ROOT + "/Data/Tables.pak/Libs/Tables/rpg/soul_vip_class.xml")
         if int(id) in (0, 1, 8, 16):
             return "mortal"
         else:
@@ -60,7 +60,7 @@ class KCD2_character_infobox(Infobox):
     
     def get_combat(self, level):
         # conbat level name is stored in Tables/rpg/soul_combat_level.xml
-        combat_level_table = Table().load(ROOT + "/Data/Tables.pak/Libs/Tables/rpg/soul_combat_level.xml")
+        combat_level_table = Table().load(ROOT + COMBAT_LEVEL)
         combat_level = combat_level_table.search(level[:3])
         return level + " (" + combat_level[0]["soul_combat_level_name"][6:] + ")"
 
@@ -80,8 +80,11 @@ class KCD2_character_infobox(Infobox):
             lines.append(f"|combat      = {self.get_combat(character.properties["combat_level"])}")
         except KeyError:
             pass
-        lines.append(f"|head_id     = {character.head}")
-        lines.append(f"|hair        = {character.hair}")
+        try:
+            lines.append(f"|head_id     = {character.head}")
+            lines.append(f"|hair        = {character.hair}")
+        except AttributeError:
+            pass
         lines.append(f"|character   = {character.properties["skald_character_name"]}")
         lines.append(f"|soul_name   = {character.properties["soul_name"]}")
         lines.append(f"|soul_id     = {character.properties["soul_id"]}")
@@ -90,44 +93,10 @@ class KCD2_character_infobox(Infobox):
         lines.append(f"|games       = KCD2")
         return lines
 
-        '''{{KCD2 Character Infobox
-        |name        = 
-        |image       = (will stay empty)
-        |category    = 
-        |category1   = 
-        <!-- Basic Information -->
-        |alias       = 
-        |born        = 
-        |nationality = 
-        |region      = 
-        |residence   = 
-        |station     = 
-        |coa         = 
-        <!-- Physical Information -->
-        |hair        = (will stay empty)
-        |eyes        =  (will stay empty)
-        |gender      = 
-        <!-- Personal Information -->
-        |titles      = 
-        |occupation  = 
-        |cause of death  =
-        |rank        = 
-        |affiliation = 
-        |skills      = 
-        <!-- Technical Information -->
-        |head_id     =
-        |games       = 
-        |character   = 
-        |soul_name   = 
-        |soul_id     = 
-        |combat      = 
-        |mortality   = 
-        |age         = 
-        |body_type   = 
-        }}
-        '''
+
 class KCD2_item_infobox(Infobox):
     #weapon class hides in... weapon_class.xml. same with weapon_sub_class.
+
     def body_weapon(self, item):
         lines = []
         lines.append(f"|str/agi     = {item.properties["StrReq"]}/{item.properties["AgiReq"]}")
@@ -157,12 +126,29 @@ class KCD2_item_infobox(Infobox):
         lines.append(f"|blunt       = {item.properties["DefenseSmash"]}")
         return lines
 
+    def body_document(self,item):
+        lines = []
+        lines.append(f"|length      =")
+        return lines
+
+    def body_alias(self, item):
+        same_item = Item.search(item.properties["SourceItemId"])
+        for i in same_item:
+            if i.properties["_tag"] != "ItemAlias":
+                return i
+
     def body(self, item):
         lines = []
         lines.append(f"{{{{KCD2 Item Infobox")
         lines.append(f"|name        = {item.name}")
         lines.append(f"|image       = {item.properties["IconId"]}_icon.png")
         lines.append(f"|type        = {item.category}")
+        lines.append(f"|code1       = {item.properties["UIName"]}")
+        lines.append(f"|code2       = {item.properties["Id"]}")
+        if item.category == "ItemAlias":
+            item = self.body_alias(self.thing)
+            self.thing = item
+            print("You chose an item which is an alias. The infobox will use its UID and UUID.")
         if item.category == "MeleeWeapon":
             lines.extend(self.body_weapon(self.thing))
         if item.category == "Armor":
@@ -171,11 +157,9 @@ class KCD2_item_infobox(Infobox):
             lines.extend(self.body_food(self.thing))
         lines.append(f"|weight      = {item.properties["Weight"]}")
         lines.append(f"|price       = {int(item.properties["Price"])/10}")
-        lines.append(f"|code1       = {item.properties["UIName"]}")
-        lines.append(f"|code2       = {item.properties["Id"]}")
         return lines
+
         # maxStatus = durability
-        # idk what visibilitycoef does
 
         '''
         | name          = 
@@ -183,68 +167,5 @@ class KCD2_item_infobox(Infobox):
         | classification = <!-- what main category it falls under in inventory. Also helps set labels for fields -->
         | type          = 
         | subtype       = <!-- for ones that are a sub-type of a main type -->
-        | min_str       = 
-        | min_agi       = 
-        | stab          = 
-        | slash         = 
-        | blunt         = 
-        | power         = 
-        | defence       = 
-        | conspic       = 
-        | noise         = 
-        | visibility    = 
-        | charisma      = 
-        | slots         = <!-- for belts or pouches. Label header will auto change as long as subtype is set correctly -->
-        | nourishment   = 
-        | energy        = 
-        | health        = 
-        | alcohol       = 
-        | durability    = 
-        | length        = <!-- for books -->
-        | weight        = 
-        | price         = 
-        <!--weak-->
-        | potion_name1         = 
-        | potion_desc1         = 
-        | potion_nourishment1  = 
-        | potion_energy1       = 
-        | potion_health1       = 
-        | potion_alcohol1      = 
-        | potion_weight1       = 
-        | potion_durability1   = 
-        | potion_price1        = 
-        <!--normal-->
-        | potion_name2         = 
-        | potion_desc2         = 
-        | potion_nourishment2  = 
-        | potion_energy2       = 
-        | potion_health2       = 
-        | potion_alcohol2      = 
-        | potion_durability2   = 
-        | potion_weight2       = 
-        | potion_price2        = 
-        <!--strong-->
-        | potion_name3         = 
-        | potion_desc3         = 
-        | potion_nourishment3  = 
-        | potion_energy3       = 
-        | potion_health3       = 
-        | potion_alcohol3      = 
-        | potion_durability3   = 
-        | potion_weight3       = 
-        | potion_price3        = 
-        <!--henry's-->
-        | potion_name4         = 
-        | potion_desc4         = 
-        | potion_nourishment4  = 
-        | potion_energy4       = 
-        | potion_health4       = 
-        | potion_alcohol4      = 
-        | potion_durability4   = 
-        | potion_weight4       = 
-        | potion_price4        = 
-        <!--recipe-->
-        | recipe        = 
-        | recipe_mats   = 
-        | code          = 
+        no point in implementing potions now; KCD2 is complete and KCS might have different mechanics
         '''

@@ -1,5 +1,5 @@
 from helpers import Table, Localization
-from config import ROOT
+from config import *
 
 class Item:
     """One item: one row of item.xml plus its English name and description.
@@ -25,8 +25,8 @@ class Item:
     @classmethod
     def load_tables(cls):
         if cls.full_item_table is None:
-            cls.full_item_table = Table().load(ROOT + "Data/Tables.pak/Libs/Tables/item/item.xml")
-            cls.localization_table = Localization().load(ROOT + "Localization/English_xml.pak/text_ui_items.xml")
+            cls.full_item_table = Table().load(ROOT + ITEM)
+            cls.localization_table = Localization().load(ROOT + LOCALIZATION_ITEMS)
 
     @classmethod
     def search(cls, query):

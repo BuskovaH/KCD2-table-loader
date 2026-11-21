@@ -1,5 +1,5 @@
 from helpers import Table, Localization
-from config import ROOT
+from config import *
 
 class Inventory:
     
@@ -11,8 +11,8 @@ class Inventory:
         self.pockets_ref = inventory_refs["pockets"]
         
         #I'm doing this here instead of inside a method because I don't want to load a single table ten times. That's just wasteful.        
-        self.item_names = Table().load(ROOT + "Data/Tables.pak/Libs/Tables/item/item.xml") #IconId, UIInfo, UIName, Id, Name
-        self.item_localization = Localization().load(ROOT + "Localization/English_xml.pak/text_ui_items.xml")   #only with uiname. uiinfo > desciption.
+        self.item_names = Table().load(ROOT + ITEM) #IconId, UIInfo, UIName, Id, Name
+        self.item_localization = Localization().load(ROOT + LOCALIZATION_ITEMS)   #only with uiname. uiinfo > desciption.
         
         self.weapons = self.get_weapons(self.weapons_ref)
         self.clothing = self.get_clothing(self.weapons_ref)
@@ -30,7 +30,7 @@ class Inventory:
     def get_weapons(self,weapons_ref):
         if weapons_ref == None:
             return None    
-        weapons_dict_raw = Table().load(ROOT + "Data/Tables.pak/Libs/Tables/item/weapon_preset.xml").where(weapon_preset_name = self.weapons_ref)[0]
+        weapons_dict_raw = Table().load(ROOT + WEAPON_PRESET).where(weapon_preset_name = self.weapons_ref)[0]
         weapons_id_list = []
         for i in weapons_dict_raw["weapon_preset_item"]:
             weapons_id_list.append(i["item_class_id"])
@@ -40,7 +40,7 @@ class Inventory:
         return weapons_list
         
     def get_clothing(self,clothing_ref):
-        clothing_dict_raw = Table().load(ROOT + "Data/Tables.pak/Libs/Tables/item/clothing_preset.xml").where(clothing_preset_name = self.clothing_ref)[0]["Items"][0]["Guid"]
+        clothing_dict_raw = Table().load(ROOT + CLOTHING_PRESET).where(clothing_preset_name = self.clothing_ref)[0]["Items"][0]["Guid"]
         clothing_id_list = []
         for i in clothing_dict_raw:
             clothing_id_list.append(i["_text"])
@@ -50,7 +50,7 @@ class Inventory:
         return clothing_list
         
     def get_pockets(self,pockets_ref, rng):
-        #pockets_fulltable = Table().load(ROOT + "Data/Tables.pak/Libs/Tables/item/clothing_preset.xml")
+        #pockets_fulltable = Table().load(ROOT + POCKETS_PRESET)
         pass
         
     def to_dict(self):
