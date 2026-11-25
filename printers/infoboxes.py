@@ -139,7 +139,7 @@ class KCD2_item_infobox(Infobox):
 
     def body(self, item):
         lines = []
-        lines.append(f"{{{{KCD2 Item Infobox")
+        lines.append(f"{{{{KCD2 item infobox")
         lines.append(f"|name        = {item.name}")
         lines.append(f"|image       = {item.properties["IconId"]}_icon.png")
         lines.append(f"|type        = {item.category}")

@@ -1,6 +1,9 @@
 from helpers import Table, Localization
 from config import *
 
+class InventoryError(Exception):
+    """The character has no gear references at all, so there is no inventory to build."""
+
 class Inventory:
     
     FIELDS = ("weapons", "clothing", "pockets")
@@ -9,16 +12,55 @@ class Inventory:
         self.weapons_ref = inventory_refs["weapons"]
         self.clothing_ref = inventory_refs["clothing"]
         self.pockets_ref = inventory_refs["pockets"]
+        self.rng = rng #determines if we randomly roll or if we just ignore the random things
+
+        if self.weapons_ref is None and self.clothing_ref is None and self.pockets_ref is None:
+            raise InventoryError("no weapons, clothing or pockets reference")
         
         #I'm doing this here instead of inside a method because I don't want to load a single table ten times. That's just wasteful.        
         self.item_names = Table().load(ROOT + ITEM) #IconId, UIInfo, UIName, Id, Name
         self.item_localization = Localization().load(ROOT + LOCALIZATION_ITEMS)   #only with uiname. uiinfo > desciption.
         
         self.weapons = self.get_weapons(self.weapons_ref)
-        self.clothing = self.get_clothing(self.weapons_ref)
-        self.pockets = self.get_pockets(self.weapons_ref, rng)
-        self.rng = rng #determines if we randomly roll or if we just ignore the random things
+        self.clothing = self.get_clothing(self.clothing_ref)
+        self.pockets = self.get_pockets(self.pockets_ref, self.rng)
         
+    @staticmethod
+    def find_refs(soul_name, soul_context):
+        """Gear references of the character `soul_name`, as a dict
+        {"weapons": ..., "clothing": ..., "pockets": ...}. A reference that
+        isn't there is None.
+
+        `soul_context` is the last four letters of the soul file name
+        (soul__kzik.xml gives "kzik"); it picks which InventoryPreset file to
+        read. Raises FileNotFoundError if that file doesn't exist."""
+        #some inventories will also hide in InventoryPreset__uniqueCharacters.xml
+        inventory_preset = Table().load(ROOT + INVENTORY_PRESET + soul_context + ".xml")
+        try:
+            inventory = inventory_preset.where(Name=("inventory_" + soul_name))[0]
+        except IndexError:
+            inventory = {}
+        refs = {}
+        try:
+            refs["weapons"] = inventory["WeaponPresetRef"][0]["Name"]
+        except KeyError:
+            refs["weapons"] = None
+        try:
+            refs["clothing"] = inventory["ClothingPresetRef"][0]["Name"]
+        except KeyError:
+            refs["clothing"] = None
+        try:
+            refs["pockets"] = inventory["InventoryPresetRef"][0]["Name"]
+        except KeyError:
+            refs["pockets"] = None
+        try:
+            refs["health"] = float(inventory["InventoryPresetRef"][0]["Health"])
+            refs["healthvar"] = float(inventory["InventoryPresetRef"][0]["HealthVariation"])
+        except KeyError:
+            refs["health"] = None
+            refs["healthvar"] = None
+        return refs
+
     def get_name(self, item_id):       
         row = self.item_names.where(Id=item_id)
         try:
@@ -30,7 +72,7 @@ class Inventory:
     def get_weapons(self,weapons_ref):
         if weapons_ref == None:
             return None    
-        weapons_dict_raw = Table().load(ROOT + WEAPON_PRESET).where(weapon_preset_name = self.weapons_ref)[0]
+        weapons_dict_raw = Table().load(ROOT + WEAPON_PRESET).where(weapon_preset_name = weapons_ref)[0]
         weapons_id_list = []
         for i in weapons_dict_raw["weapon_preset_item"]:
             weapons_id_list.append(i["item_class_id"])
@@ -40,7 +82,9 @@ class Inventory:
         return weapons_list
         
     def get_clothing(self,clothing_ref):
-        clothing_dict_raw = Table().load(ROOT + CLOTHING_PRESET).where(clothing_preset_name = self.clothing_ref)[0]["Items"][0]["Guid"]
+        if clothing_ref == None:
+            return None
+        clothing_dict_raw = Table().load(ROOT + CLOTHING_PRESET).where(clothing_preset_name = clothing_ref)[0]["Items"][0]["Guid"]
         clothing_id_list = []
         for i in clothing_dict_raw:
             clothing_id_list.append(i["_text"])
@@ -50,7 +94,9 @@ class Inventory:
         return clothing_list
         
     def get_pockets(self,pockets_ref, rng):
-        #pockets_fulltable = Table().load(ROOT + POCKETS_PRESET)
+        if pockets_ref == None:
+            return None
+        #ockets_dict_raw = Table().load(ROOT + POCKETS_PRESET)
         pass
         
     def to_dict(self):

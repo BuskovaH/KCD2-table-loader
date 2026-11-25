@@ -22,6 +22,9 @@ while True:
                 c = Character(input("Give me the name of the person:\n"))
                 infobox = Infobox.create(c)
                 print(infobox)
+                wants_inventory_switch = input("Want to output their inventory? (y/n)")
+                if wants_inventory_switch == "y":
+                    print(c)
             except CharacterError as e:
                 print(e)
         case "i":

@@ -1,6 +1,6 @@
 """Character: everything we know about one character."""
 from helpers import Table, Localization
-from inventory import Inventory
+from inventory import Inventory, InventoryError
 from config import *
 
 class CharacterError(Exception):
@@ -27,7 +27,6 @@ class Character:
         self.soul_name = None
         self.inventory_refs = None
         self.full_inventory = None
-        self.soul_vip_class_id = None
         self.social_class = None
         self.properties = None #preferably pull everything from infobox into this, a dict that keeps the full soul entry
         #body type is in Tables/skald/skald_character
@@ -74,11 +73,9 @@ class Character:
         #some inventory presets are also stored in IPL_GameData.pak/Libs/Storm/equipment/quests/
         try:
             soul_context_stripped = self.soul.sources[0][-8:-4]
-            self.inventory_preset = Table().load(ROOT + INVENTORY_PRESET + soul_context_stripped + ".xml")
-
-            self.load_inventory_refs(self.inventory_preset)
-            self.get_inventory_list()
-        except (IndexError, FileNotFoundError):
+            self.inventory_refs = Inventory.find_refs(self.soul_name, soul_context_stripped)
+            self.full_inventory = Inventory(self.inventory_refs)
+        except (IndexError, FileNotFoundError, InventoryError):
             self.full_inventory = "I CAN'T REACH THE INVENTORY DO NOT ASK ME WHY"
 
         self.get_head()
@@ -120,7 +117,6 @@ class Character:
             row = soul.where(skald_character_name=self.skald_name)[0]
             self.soul_id = row["soul_id"]
             self.soul_name = row["soul_name"]
-            self.soul_vip_class_id = row["soul_vip_class_id"]
             try:
                 self.social_class = self.get_social_class(row["social_class_id"])
             except KeyError:
@@ -129,33 +125,6 @@ class Character:
         except IndexError:
             raise CharacterError("Soul file not found - check if it's not missing in config.py.")
 
-    def load_inventory_refs(self, inventory_preset):
-        """Fill the gear references from this character's entry in `inventory_preset`."""
-        #some inventories will also hide in InventoryPreset__uniqueCharacters.xml
-        try:
-            inventory = inventory_preset.where(Name=("inventory_" + self.soul_name))[0]
-        except IndexError:
-            inventory = {}
-        self.inventory_refs = {}
-        try:
-            self.inventory_refs["weapons"] = inventory["WeaponPresetRef"][0]["Name"]
-        except KeyError:
-            self.inventory_refs["weapons"] = None
-        try:
-            self.inventory_refs["clothing"] = inventory["ClothingPresetRef"][0]["Name"]
-        except KeyError:
-            self.inventory_refs["clothing"] = None
-        try:
-            self.inventory_refs["pockets"] = inventory["InventoryPresetRef"][0]["Name"]
-        except KeyError:
-            self.inventory_refs["pockets"] = None
-        
-    def get_inventory_list(self):
-        if self.inventory_refs == None:
-            return
-        else:
-            self.full_inventory = Inventory(self.inventory_refs)
-            
     def get_head(self):
         soul_context_stripped = self.soul.sources[0][-8:-4]
         try:
